@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, OverloadedStrings, FlexibleInstances #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings, FlexibleInstances, TemplateHaskell #-}
 
 import Control.Applicative
 import Control.Monad
@@ -42,6 +42,7 @@ import Blockchain.Data.RLP
 import Blockchain.Data.Transaction
 import Blockchain.Database.MerklePatricia
 import Blockchain.DB.CodeDB
+import Blockchain.DB.StateDB
 import Blockchain.DBM
 --import Blockchain.ExtDBs
 import Blockchain.ExtWord
@@ -52,10 +53,12 @@ import Blockchain.VM
 import Blockchain.VM.Code
 import Blockchain.VM.Environment
 import Blockchain.VM.VMState
+import Blockchain.VMOptions
 import qualified Data.NibbleString as N
 import Blockchain.DB.MemAddressStateDB
 import Blockchain.DB.StorageDB
 import Blockchain.Database.MerklePatricia.Internal
+import HFlags 
 
 import TestDescriptions
 
@@ -66,6 +69,8 @@ import TestFiles
 --nibbleString2ByteString::N.NibbleString->B.ByteString
 --nibbleString2ByteString (N.EvenNibbleString str) = str
 --nibbleString2ByteString (N.OddNibbleString c str) = c `B.cons` str
+
+emptyStringChar8BS len = BC.pack $ replicate len '\0'
 
 isDebugEnabled = True
 
@@ -173,6 +178,8 @@ runTest' test = do
 runTest::Test->ContextM (Either String String)
 runTest test = do
 
+  initializeBlank =<< getStateDB 
+  setStateDBStateRoot emptyTriePtr
   --lift $ setStateRoot emptyTriePtr -- TODO add me again
 
   forM_ (M.toList $ pre test) $
@@ -189,21 +196,21 @@ runTest test = do
              blockDataNumber = read . currentNumber . env $ test,
              blockDataCoinbase = currentCoinbase . env $ test,
              blockDataDifficulty = read . currentDifficulty . env $ test,
-             blockDataUnclesHash = error "unclesHash undefined",
-             blockDataStateRoot = error "bStateRoot undefined",
-             blockDataTransactionsRoot = error "transactionsRoot undefined",
-             blockDataReceiptsRoot = error "receiptsRoot undefined",
-             blockDataLogBloom = error "logBloom undefined",
+             blockDataUnclesHash = SHA $ fromIntegral 0, -- error "unclesHash undefined",
+             blockDataStateRoot = StateRoot $ emptyStringChar8BS 32, -- error "bStateRoot undefined",
+             blockDataTransactionsRoot = StateRoot $ emptyStringChar8BS 32, --error "transactionsRoot undefined",
+             blockDataReceiptsRoot = StateRoot $ emptyStringChar8BS 32, --error "receiptsRoot undefined",
+             blockDataLogBloom = emptyStringChar8BS 32, -- error "logBloom undefined",
              blockDataGasLimit = currentGasLimit . env $ test,
-             blockDataGasUsed = error "gasUsed undefined",
+             blockDataGasUsed = 0, -- error "gasUsed undefined",
              blockDataTimestamp = currentTimestamp . env $ test,
              --timestamp = posixSecondsToUTCTime . fromInteger . read . currentTimestamp . env $ test,
-             blockDataExtraData = error "extraData undefined",
-             blockDataNonce = error "nonce undefined",
-             blockDataMixHash = error "mixHash undefined" -- TODO
+             blockDataExtraData = 0, -- error "extraData undefined",
+             blockDataNonce = 0, -- error "nonce undefined",
+             blockDataMixHash = SHA $ fromIntegral 0 -- error "mixHash undefined" -- TODO
              },
-          blockReceiptTransactions = error "receiptTransactions undefined",
-          blockBlockUncles = error "blockUncles undefined"
+          blockReceiptTransactions = [], -- error "receiptTransactions undefined",
+          blockBlockUncles = [] -- error "blockUncles undefined"
           }
 
   (result, retVal, gasRemaining, logs, returnedCallCreates) <-
@@ -328,6 +335,7 @@ runTests tests = do
 
 main:: IO ()
 main = do
+  _ <- $initHFlags "VMTests"
   testsExist <- doesDirectoryExist "tests"
   when (not testsExist) $
     error "You need to clone the git repository at https://github.com/ethereum/tests.git"
@@ -346,19 +354,20 @@ main = do
 
   --_ <- runResourceT $ do
   _ <- flip runLoggingT printLogMsg $ runContextM $ do
-    dbs <-  openDBs -- :: StateT Context (ResourceT (LoggingT IO)) DBs  
-    let debug = length args == 2
-    let context = Context {contextStateDB                   = error "contextStateDB not defined", 
-                           contextHashDB                    = error "contextHashDB not defined",
-                           contextCodeDB                    = dbs, -- error "contextCodeDB not defined",
-                           contextBlockSummaryDB            = error "contextBlockSummaryDB not defined",
-                           contextSQLDB                     = error "contextSQLDB not defined",
-                           cachedBestProcessedBlock         = error "cachedBestProcessedBlock not defined",
-                           contextWhoSignedThisTransaction  = error "contextWhoSignedThisTransaction not defined",
-                           contextAddressStateDBMap         = error "contextAddressStateDBMap not defined",
-                           contextStorageMap                = error "contextStorageMap not defined"}
-                           
-    lift $ runStateT (runAllTests maybeFileName maybeTestName) context 
+    --dbs <-  openDBs -- :: StateT Context (ResourceT (LoggingT IO)) DBs  
+    --let debug = length args == 2
+    --let context = Context {contextStateDB                   = error "contextStateDB not defined", 
+    --                       contextHashDB                    = error "contextHashDB not defined",
+    --                       contextCodeDB                    = dbs, -- error "contextCodeDB not defined",
+    --                       contextBlockSummaryDB            = error "contextBlockSummaryDB not defined",
+    --                       contextSQLDB                     = error "contextSQLDB not defined",
+    --                       cachedBestProcessedBlock         = error "cachedBestProcessedBlock not defined",
+    --                       contextWhoSignedThisTransaction  = error "contextWhoSignedThisTransaction not defined",
+    --                       contextAddressStateDBMap         = error "contextAddressStateDBMap not defined",
+    --                       contextStorageMap                = error "contextStorageMap not defined"}
+    --
+    runAllTests maybeFileName maybeTestName
+    --lift $ runStateT (runAllTests maybeFileName maybeTestName) context 
   
   return ()
 
