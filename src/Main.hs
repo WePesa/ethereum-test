@@ -2,6 +2,7 @@
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Logger
 import Control.Monad.IfElse
 import Control.Monad.IO.Class
 import Control.Monad.Trans
@@ -25,6 +26,7 @@ import Numeric
 import System.Environment
 import System.Directory
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import Blockchain.Output
 
 import Blockchain.BlockChain
 import qualified Blockchain.Colors as C
@@ -33,6 +35,8 @@ import Blockchain.Data.AddressStateDB
 import Blockchain.Data.BlockDB
 import Blockchain.Data.Code
 import Blockchain.VMContext
+--import Blockchain.VMContext hiding (Context, ContextM) 
+--import Blockchain.Context (Context(..), ContextM)
 import Blockchain.Data.DataDefs
 import Blockchain.Data.RLP
 import Blockchain.Data.Transaction
@@ -316,12 +320,12 @@ runTests::[(String, Test)]->ContextM ()
 runTests tests = do
   results <- 
     forM tests $ \(name, test) -> do
-      --liftIO $ putStrLn $ "Running test: " ++ show name
+      liftIO $ putStrLn $ "Running test: " ++ show name
       result <- runTest' test
       return (name, result)
   liftIO $ putStrLn $ intercalate "\n" $ formatResult <$> results
 
-main::IO ()
+main:: IO ()
 main = do
   testsExist <- doesDirectoryExist "tests"
   when (not testsExist) $
@@ -340,10 +344,20 @@ main = do
 
 
   --_ <- runResourceT $ do
-  --  cxt <- openDBs "h"
-  --  let debug = length args == 2
-  --  runStateT (runStateT (runAllTests maybeFileName maybeTestName) (Context [] 0 [] debug)) cxt
-
+  _ <- flip runLoggingT printLogMsg $ runContextM $ do
+    dbs <-  openDBs -- :: StateT Context (ResourceT (LoggingT IO)) DBs  
+    let debug = length args == 2
+    let context = Context {contextStateDB                   = error "contextStateDB not defined",  --dbs,
+                           contextHashDB                    = error "contextHashDB not defined",
+                           contextBlockSummaryDB            = error "contextBlockSummaryDB not defined",
+                           contextSQLDB                     = error "contextSQLDB not defined",
+                           cachedBestProcessedBlock         = error "cachedBestProcessedBlock not defined",
+                           contextWhoSignedThisTransaction  = error "contextWhoSignedThisTransaction not defined",
+                           contextAddressStateDBMap         = error "contextAddressStateDBMap not defined",
+                           contextStorageMap                = error "contextStorageMap not defined"}
+                           
+    lift $ runStateT (runAllTests maybeFileName maybeTestName) context 
+  
   return ()
 
 runAllTests::Maybe String->Maybe String->ContextM ()
