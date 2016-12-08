@@ -40,6 +40,7 @@ import Blockchain.VMContext
 import Blockchain.Data.DataDefs
 import Blockchain.Data.RLP
 import Blockchain.Data.Transaction
+import Blockchain.Data.TransactionDef
 import Blockchain.Database.MerklePatricia
 import Blockchain.DB.CodeDB
 import Blockchain.DB.StateDB
@@ -58,6 +59,10 @@ import qualified Data.NibbleString as N
 import Blockchain.DB.MemAddressStateDB
 import Blockchain.DB.StorageDB
 import Blockchain.Database.MerklePatricia.Internal
+import Blockchain.FastECRecover
+import Blockchain.Data.Address
+import Blockchain.ExtendedECDSA
+import Data.Maybe (fromJust)
 import HFlags 
 
 import TestDescriptions
@@ -371,8 +376,18 @@ main = do
   
   return ()
 
+whoSignedThisTransaction' :: Transaction -> Maybe Address -- Signatures can be malformed, hence the Maybe
+whoSignedThisTransaction' t = 
+    fmap pubKey2Address $ getPubKeyFromSignature' xSignature theHash
+  where
+    xSignature = ExtendedSignature (Haskoin.Signature (fromInteger $ transactionR t) (fromInteger $ transactionS t)) (0x1c == transactionV t)
+    SHA theHash = partialTransactionHash t
+    getPubKeyFromSignature' = getPubKeyFromSignature_fast
+    partialTransactionHash = hash . rlpSerialize . partialRLPEncode
+
 runAllTests::Maybe String->Maybe String->ContextM ()
 runAllTests maybeFileName maybeTestName= do
+  putWSTT $ fromJust . whoSignedThisTransaction'
   let theFiles =
         case maybeFileName of
           Nothing -> testFiles
