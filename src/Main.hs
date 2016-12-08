@@ -17,6 +17,7 @@ import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy as BL
 import Data.Either
+import qualified Data.Set as Set
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe
@@ -35,8 +36,6 @@ import Blockchain.Data.AddressStateDB
 import Blockchain.Data.BlockDB
 import Blockchain.Data.Code
 import Blockchain.VMContext
---import Blockchain.VMContext hiding (Context, ContextM) 
---import Blockchain.Context (Context(..), ContextM)
 import Blockchain.Data.DataDefs
 import Blockchain.Data.RLP
 import Blockchain.Data.Transaction
@@ -45,7 +44,6 @@ import Blockchain.Database.MerklePatricia
 import Blockchain.DB.CodeDB
 import Blockchain.DB.StateDB
 import Blockchain.DBM
---import Blockchain.ExtDBs
 import Blockchain.ExtWord
 import Blockchain.Format
 import Blockchain.SHA
@@ -137,26 +135,23 @@ getNumber::String->Integer
 getNumber "" = 0
 getNumber x = read x
 
-{-
-newAccountsToCallCreates::(Maybe Address, Integer, AddressState)->ContextM DebugCallCreate
-newAccountsToCallCreates (maybeAddress, gasRemaining, AddressState{balance=b, codeHash=h}) = do
-  Just codeBytes <- lift $ getCode h
-  let destination =
-        case maybeAddress of
-          Just (Address address) -> padZeros 40 $ showHex address ""
-          Nothing -> ""
-  return DebugCallCreate {
-    ccData="0x" ++ BC.unpack (B16.encode codeBytes),
-    ccDestination=destination,
-    ccGasLimit=show gasRemaining,
-    ccValue=show b
-    }
--}
+--newAccountsToCallCreates::(Maybe Address, Integer, AddressState)->ContextM DebugCallCreate
+--newAccountsToCallCreates (maybeAddress, gasRemaining, AddressState{balance=b, codeHash=h}) = do
+--  Just codeBytes <- lift $ getCode h
+--  let destination =
+--        case maybeAddress of
+--          Just (Address address) -> padZeros 40 $ showHex address ""
+--          Nothing -> ""
+--  return DebugCallCreate {
+--    ccData="0x" ++ BC.unpack (B16.encode codeBytes),
+--    ccDestination=destination,
+--    ccGasLimit=show gasRemaining,
+--    ccValue=show b
+--    }
 
 isBlankCode::Code->Bool
 isBlankCode (Code "") = True
 isBlankCode _ = False
-
 
 showInfo::(Address,AddressState')->String
 showInfo (key,val@AddressState'{nonce'=n, balance'=b, storage'=s, contractCode'=Code c}) = 
@@ -197,7 +192,7 @@ runTest test = do
   let block =
         Block {
           blockBlockData = BlockData {
-             blockDataParentHash = previousHash . env $ test,
+             blockDataParentHash = error "previousHash not defined", -- previousHash . env $ test,
              blockDataNumber = read . currentNumber . env $ test,
              blockDataCoinbase = currentCoinbase . env $ test,
              blockDataDifficulty = read . currentDifficulty . env $ test,
@@ -212,7 +207,7 @@ runTest test = do
              --timestamp = posixSecondsToUTCTime . fromInteger . read . currentTimestamp . env $ test,
              blockDataExtraData = 0, -- error "extraData undefined",
              blockDataNonce = 0, -- error "nonce undefined",
-             blockDataMixHash = SHA $ fromIntegral 0 -- error "mixHash undefined" -- TODO
+             blockDataMixHash = SHA $ fromIntegral 0 -- error "mixHash undefined" 
              },
           blockReceiptTransactions = [], -- error "receiptTransactions undefined",
           blockBlockUncles = [] -- error "blockUncles undefined"
@@ -234,8 +229,8 @@ runTest test = do
                 envCode = code exec,
                 envJumpDests = getValidJUMPDESTs $ code exec
                 }
-
-        vmState <- liftIO $ startingState False False env (error "Context not defined") -- TODO add Context here
+        ctx <- get
+        vmState <- liftIO $ startingState False False env ctx -- (error "Context not defined") -- TODO add Context here
 
         (result, vmState) <-
           lift $ flip runStateT vmState{vmGasRemaining=getNumber $ gas exec, debugCallCreates=Just []} $ -- - lift
@@ -244,8 +239,8 @@ runTest test = do
 
             vmState <- lift get 
             when isDebugEnabled $ do -- liftM
-              liftIO $ putStrLn $ "Removing accounts in suicideList: " ++ "TODO add me"
-                                -- intercalate ", " (show . pretty <$> suicideList vmState)
+              liftIO $ putStrLn $ "Removing accounts in suicideList: " ++ 
+                                 intercalate ", " (show . pretty <$> (Set.toList $ suicideList vmState))
 
             forM_ (suicideList vmState) $ deleteAddressState -- lift . lift . lift
 
@@ -291,13 +286,13 @@ runTest test = do
                  \s' -> s'{storage' = M.mapKeys hashInteger (storage' s')} 
 
   when isDebugEnabled $ do -- whenM
-    liftIO $ putStrLn "Before-------------"
+    liftIO $ putStrLn "\nBefore   -------------"
     liftIO $ putStrLn $ unlines $ showInfo <$> beforeAddressStates
-    liftIO $ putStrLn "After-------------"
+    liftIO $ putStrLn "After    -------------"
     liftIO $ putStrLn $ unlines $ showInfo <$> afterAddressStates
-    liftIO $ putStrLn "Expected-------------"
+    liftIO $ putStrLn "Expected -------------"
     liftIO $ putStrLn $ unlines $ showInfo <$> postTest
-    liftIO $ putStrLn "-------------"
+    liftIO $ putStrLn "End      -------------\n"
 
   case (RawData (fromMaybe B.empty retVal) == out test,
         (afterAddressStates == postTest) || (null postTest && isLeft result),
@@ -355,7 +350,6 @@ main = do
           _ -> error "You can only supply 2 parameters"
   
   --let theFileName = testFiles !! read fileNumber
-
 
   --_ <- runResourceT $ do
   _ <- flip runLoggingT printLogMsg $ runContextM $ do

@@ -13,7 +13,7 @@ module TestDescriptions (
   Tests
   ) where
 
-import Control.Applicative
+--import Control.Applicative
 import Data.Aeson
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Base16 as B16
@@ -24,7 +24,7 @@ import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.Clock.POSIX
 import GHC.Generics hiding (to)
-import qualified Network.Haskoin.Internals as Haskoin
+--import qualified Network.Haskoin.Internals as Haskoin
 import Network.Haskoin.Crypto (PrvKey, makePrvKey)
 import Numeric
 import Data.Maybe
@@ -32,8 +32,8 @@ import Data.Maybe
 import Blockchain.Data.Address
 import Blockchain.Data.Code
 import Blockchain.Data.Log
-import Blockchain.Database.MerklePatricia
-import Blockchain.SHA
+--import Blockchain.Database.MerklePatricia
+--import Blockchain.SHA
 import Blockchain.Util
 import Blockchain.VM.VMState
 
@@ -46,8 +46,8 @@ data Env =
     currentGasLimit::Integer,
     currentNumber::String,
     --currentTimestamp::String,
-    currentTimestamp::UTCTime,
-    previousHash::SHA
+    currentTimestamp::UTCTime
+    --previousHash::SHA
     } deriving (Generic, Show)
 
 data AddressState' =
@@ -210,11 +210,11 @@ instance FromJSON Env where
     v .: "currentDifficulty" <*>
     v .: "currentGasLimit" <*>
     v .: "currentNumber" <*>
-    v .: "currentTimestamp" <*>
-    v .: "previousHash"
+    v .: "currentTimestamp" -- <*>
+    --v .: "previousHash"
     where
-      env' v1 v2 currentGasLimit' v4 currentTimestamp' v6 =
-        Env v1 v2 (read currentGasLimit') v4 (posixSecondsToUTCTime . fromInteger . sloppyInteger2Integer $ currentTimestamp') v6
+      env' v1 v2 currentGasLimit' v4 currentTimestamp' =
+        Env v1 v2 (read currentGasLimit') v4 (posixSecondsToUTCTime . fromInteger . sloppyInteger2Integer $ currentTimestamp') 
   parseJSON x = error $ "Wrong format when trying to parse Env from JSON: " ++ show x
 
 
@@ -315,7 +315,8 @@ instance FromJSON RawData where
       string2RawData::String->RawData
       string2RawData ('0':'x':rest) = RawData . fst . B16.decode . BC.pack $ rest
       string2RawData "" = RawData B.empty
-      string2RawData x = error $ "Missing case in string2RawData: " ++ show x
+      string2RawData x = RawData . fst . B16.decode . BC.pack $ x 
+      -- string2RawData x = error $ "Missing case in string2RawData: " ++ show x
 
 --instance FromJSON SHA where
 --  parseJSON =
