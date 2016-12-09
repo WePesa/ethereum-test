@@ -4,6 +4,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.IfElse
 import Control.Monad.IO.Class
+import Control.Monad.Logger
 import Control.Monad.Trans
 import Control.Monad.Trans.Either
 import Control.Monad.Trans.Resource
@@ -29,6 +30,7 @@ import System.Environment
 import System.FilePath
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>))
 import qualified Database.LevelDB as DB
+import Blockchain.Output
 
 import Blockchain.BlockChain
 import qualified Blockchain.Colors as C
@@ -190,6 +192,8 @@ showPart x =
 
 runTest::Test->ContextM (Either String String)
 runTest test = do
+  
+  MP.initializeBlank =<< getStateDB
   setStateDBStateRoot emptyTriePtr
 
   forM_ (M.toList $ pre test) $
@@ -207,9 +211,9 @@ runTest test = do
              blockDataCoinbase = currentCoinbase . env $ test,
              blockDataDifficulty = read . currentDifficulty . env $ test,
              blockDataUnclesHash = SHA 0, --error "unclesHash not set",
-             blockDataStateRoot = SHAPtr "", --error "bStateRoot not set",
-             blockDataTransactionsRoot = SHAPtr "", --error "transactionsRoot not set",
-             blockDataReceiptsRoot = SHAPtr "", --error "receiptsRoot not set",
+             blockDataStateRoot = StateRoot "", -- error "bStateRoot not set",
+             blockDataTransactionsRoot = StateRoot "", -- error "transactionsRoot not set",
+             blockDataReceiptsRoot = StateRoot "", -- error "receiptsRoot not set", -- StateRoot ""
              blockDataLogBloom = "", --error "logBloom not set",
              blockDataGasLimit = currentGasLimit . env $ test,
              blockDataGasUsed = 0, --error "gasUsed not set",
@@ -309,13 +313,13 @@ runTest test = do
                  \s' -> s'{storage' = M.mapKeys hashInteger (storage' s')} 
 
   when flags_debugEnabled $ do
-    liftIO $ putStrLn "Before-------------"
+    liftIO $ putStrLn "Before   -------------"
     liftIO $ putStrLn $ unlines $ showInfo <$> beforeAddressStates
-    liftIO $ putStrLn "After-------------"
+    liftIO $ putStrLn "After    -------------"
     liftIO $ putStrLn $ unlines $ showInfo <$> afterAddressStates
-    liftIO $ putStrLn "Expected-------------"
+    liftIO $ putStrLn "Expected -------------"
     liftIO $ putStrLn $ unlines $ showInfo <$> postTest
-    liftIO $ putStrLn "-------------"
+    liftIO $ putStrLn "End      -------------"
 
   case (RawData (fromMaybe B.empty retVal) == out test,
         (M.fromList afterAddressStates == M.fromList postTest) || (null postTest && isLeft result),
@@ -326,7 +330,7 @@ runTest test = do
         (callcreates test == fmap reverse returnedCallCreates) || (isNothing (callcreates test) && (returnedCallCreates == Just []))
         ) of
     (False, _, _, _, _) -> return $ Left $ "result doesn't match" -- : is " ++ showPart retVal ++ ", should be " ++ showPart (out test)
-    (_, False, _, _, _) -> return $ Left "address states don't match"
+    (_, False, _, _, _) -> return $ Left $ "address states don't match"
     (_, _, False, _, _) -> return $ Left $ "remaining gas doesn't match: is " ++ show gasRemaining ++ ", should be " ++ show (remainingGas test) ++ ", diff=" ++ show (gasRemaining - fromJust (remainingGas test))
     (_, _, _, False, _) -> do
       liftIO $ putStrLn "llllllllllllllllllllll"
@@ -356,6 +360,9 @@ runTests tests = do
       return (name, result)
   liftIO $ putStrLn $ intercalate "\n" $ formatResult <$> results
 
+noLog _ _ _ _ = do
+  return ()
+
 main::IO ()
 main = do
   args <- $initHFlags "The Ethereum Test program"
@@ -374,7 +381,7 @@ main = do
 
   homeDir <- getHomeDirectory
 
-  _ <- runContextM $ do
+  _ <- flip runLoggingT noLog $ runContextM $ do
     putWSTT $ fromMaybe (error "whoSignedThisTransaction was called with an invalid signature") . whoSignedThisTransaction
     let debug = length args == 2
     runAllTests maybeFileName maybeTestName
