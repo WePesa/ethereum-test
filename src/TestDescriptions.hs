@@ -33,7 +33,7 @@ import Blockchain.Data.Address
 import Blockchain.Data.Code
 import Blockchain.Data.Log
 --import Blockchain.Database.MerklePatricia
---import Blockchain.SHA
+import Blockchain.SHA
 import Blockchain.Util
 import Blockchain.VM.VMState
 
@@ -46,8 +46,8 @@ data Env =
     currentGasLimit::Integer,
     currentNumber::String,
     --currentTimestamp::String,
-    currentTimestamp::UTCTime
-    --previousHash::SHA
+    currentTimestamp::UTCTime,
+    previousHash::SHA
     } deriving (Generic, Show)
 
 data AddressState' =
@@ -210,11 +210,11 @@ instance FromJSON Env where
     v .: "currentDifficulty" <*>
     v .: "currentGasLimit" <*>
     v .: "currentNumber" <*>
-    v .: "currentTimestamp" -- <*>
-    --v .: "previousHash"
+    v .: "currentTimestamp" <*>
+    v .:? "previousHash" .!= (SHA $ fromIntegral 0) -- TODO this causes "missing value in block summary DB" because it is not a valid block hash
     where
-      env' v1 v2 currentGasLimit' v4 currentTimestamp' =
-        Env v1 v2 (read currentGasLimit') v4 (posixSecondsToUTCTime . fromInteger . sloppyInteger2Integer $ currentTimestamp') 
+      env' v1 v2 currentGasLimit' v4 currentTimestamp' v6 =
+        Env v1 v2 (read currentGasLimit') v4 (posixSecondsToUTCTime . fromInteger . sloppyInteger2Integer $ currentTimestamp') v6 
   parseJSON x = error $ "Wrong format when trying to parse Env from JSON: " ++ show x
 
 
