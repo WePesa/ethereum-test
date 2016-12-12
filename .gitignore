@@ -2,3 +2,5 @@
 dist
 tests
 .stack-work
+.ethereumH
+log
