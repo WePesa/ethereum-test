@@ -44,3 +44,19 @@ executable ethereum-test
   other-modules:       TestFiles,
                        TestDescriptions
 
+
+Test-Suite test-ethereum-test
+  default-language: Haskell98
+  type:             exitcode-stdio-1.0
+  main-is:          TestMain.hs
+  hs-source-dirs:   test, src
+  build-depends:    base >=4 && < 5
+                  , data-default
+                  , leveldb-haskell
+                  , resourcet
+                  , bytestring
+                  , base16-bytestring
+                  , transformers
+                  , binary
+                  , test-framework
+                  , test-framework-hunit 
