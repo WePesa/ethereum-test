@@ -60,6 +60,9 @@ import Blockchain.VM.Code
 import Blockchain.VM.Environment
 import Blockchain.VM.VMState
 import Blockchain.VMOptions
+import Blockchain.Sequencer.Event
+import Blockchain.Data.ExecResults
+import qualified Blockchain.Data.TXOrigin as TO
 import qualified Data.NibbleString as N
 
 import TestDescriptions
@@ -190,6 +193,9 @@ showPart x =
   else take 40 value ++ "..."
   where value = take 40 $ show x
 
+txToOutputTx :: Transaction -> OutputTx
+txToOutputTx = fromJust . wrapTransaction . IngestTx TO.Direct
+
 runTest::Test->ContextM (Either String String)
 runTest test = do
   
@@ -233,8 +239,8 @@ runTest test = do
 
         let env' =
               Environment{
-                envGasPrice=getNumber $ gasPrice' exec,
-                envBlock=block,
+                envGasPrice = getNumber $ gasPrice' exec,
+                envBlockHeader = blockBlockData $ block,
                 envOwner = address' exec,
                 envOrigin = origin exec,
                 envInputData = theData $ data' exec,
@@ -287,20 +293,31 @@ runTest test = do
                     (getNumber $ tValue' transaction)
                     (theData $ tData' transaction)
                     (tSecretKey' transaction)
-        signedTransaction <- liftIO $ withSource Haskoin.devURandom t
+        signedTransaction' <- liftIO $ withSource Haskoin.devURandom t
+        let signedTransaction = txToOutputTx signedTransaction'
         result <-
-          runEitherT $ addTransaction True block (currentGasLimit $ env test) signedTransaction
+          runEitherT $ addTransaction True (blockBlockData $ block) (currentGasLimit $ env test) signedTransaction
 
         flushMemStorageDB
         flushMemAddressStateDB
 
+
+-- (result, retVal, gasRemaining, logs, returnedCallCreates, maybeVMStateAfter)
+
         case result of
-          Right (VMState{vmException=Just e}, _) -> do
-                    return (Right (), Nothing, 0, [], Just [], Nothing)
-          Right (vmState, _) -> do
-                    return (Right (), returnVal vmState, vmGasRemaining vmState, logs vmState, debugCallCreates vmState, Just vmState)
-          Left e -> do
-                    return (Right (), Nothing, 0, [], Just [], Nothing)
+            Right (ExecResults remGas retVal trace logs newCtAddr) -> do
+              return ( Right (), retVal, remGas, logs, Just [], Nothing)
+
+            Left e -> do 
+              return (Right (), Nothing, 0, [], Just [], Nothing)
+
+
+--          Right (VMState{vmException=Just e}, _) -> do
+--                    return (Right (), Nothing, 0, [], Just [], Nothing)
+--          Right (vmState, _) -> do
+--                    return (Right (), returnVal vmState, vmGasRemaining vmState, logs vmState, debugCallCreates vmState, Just vmState)
+--          Left e -> do
+--                    return (Right (), Nothing, 0, [], Just [], Nothing)
 
   afterAddressStates <- addressStates
 
@@ -382,7 +399,7 @@ main = do
   homeDir <- getHomeDirectory
 
   _ <- flip runLoggingT noLog $ runContextM $ do
-    putWSTT $ fromMaybe (error "whoSignedThisTransaction was called with an invalid signature") . whoSignedThisTransaction
+    -- putWSTT $ fromMaybe (error "whoSignedThisTransaction was called with an invalid signature") . whoSignedThisTransaction
     let debug = length args == 2
     runAllTests maybeFileName maybeTestName
     
