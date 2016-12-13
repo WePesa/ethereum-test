@@ -58,5 +58,8 @@ Test-Suite test-ethereum-test
                   , base16-bytestring
                   , transformers
                   , binary
+                  , mtl
+                  , containers
+                  , HUnit
                   , test-framework
                   , test-framework-hunit 

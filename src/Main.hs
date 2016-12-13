@@ -1,19 +1,20 @@
 {-# LANGUAGE DeriveGeneric, OverloadedStrings, FlexibleInstances, TemplateHaskell #-}
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 
-import Control.Applicative
+--import Control.Applicative
 import Control.Monad
 import Control.Monad.Logger
-import Control.Monad.IfElse
+--import Control.Monad.IfElse
 import Control.Monad.IO.Class
 import Control.Monad.Trans
 import Control.Monad.Trans.Either
-import Control.Monad.Trans.Resource
+--import Control.Monad.Trans.Resource
 import Control.Monad.Trans.State
 import qualified Crypto.Hash.SHA3 as SHA3
 import Data.Aeson
 import qualified Data.Binary as Bin
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Base16 as B16
+--import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy as BL
 import Data.Either
@@ -36,14 +37,14 @@ import Blockchain.Data.AddressStateDB
 import Blockchain.Data.BlockDB
 import Blockchain.Data.Code
 import Blockchain.VMContext
-import Blockchain.Data.DataDefs
+--import Blockchain.Data.DataDefs
 import Blockchain.Data.RLP
 import Blockchain.Data.Transaction
 import Blockchain.Data.TransactionDef
 import Blockchain.Database.MerklePatricia
 import Blockchain.DB.CodeDB
 import Blockchain.DB.StateDB
-import Blockchain.DBM
+--import Blockchain.DBM
 import Blockchain.ExtWord
 import Blockchain.Format
 import Blockchain.SHA
@@ -52,20 +53,20 @@ import Blockchain.VM
 import Blockchain.VM.Code
 import Blockchain.VM.Environment
 import Blockchain.VM.VMState
-import Blockchain.VMOptions
+--import Blockchain.VMOptions
 import qualified Data.NibbleString as N
 import Blockchain.DB.MemAddressStateDB
 import Blockchain.DB.StorageDB
 import Blockchain.Database.MerklePatricia.Internal
 import Blockchain.FastECRecover
-import Blockchain.Data.Address
+--import Blockchain.Data.Address
 import Blockchain.ExtendedECDSA
-import Data.Maybe (fromJust)
+--import Data.Maybe (fromJust)
 import HFlags 
 
 import TestDescriptions
 
-import Debug.Trace
+--import Debug.Trace
 
 import TestFiles
 
@@ -73,8 +74,10 @@ import TestFiles
 --nibbleString2ByteString (N.EvenNibbleString str) = str
 --nibbleString2ByteString (N.OddNibbleString c str) = c `B.cons` str
 
+emptyStringChar8BS :: Int -> BC.ByteString
 emptyStringChar8BS len = BC.pack $ replicate len '\0'
 
+isDebugEnabled :: Bool
 isDebugEnabled = True
 
 populateAndConvertAddressState::Address->AddressState'->ContextM AddressState
@@ -106,7 +109,7 @@ showHexInt x
        ++ xHex
 
 getDataAndRevertAddressState::Address->AddressState->ContextM AddressState'
-getDataAndRevertAddressState owner addressState = do
+getDataAndRevertAddressState _ addressState = do
   theCode <- fmap (fromMaybe (error $ "Missing code in getDataAndRevertAddressState: " ++ format addressState)) $
              getCode (addressStateCodeHash addressState) -- lift
 
@@ -128,8 +131,8 @@ getDataAndRevertAddressState owner addressState = do
      $ M.fromList storage)
     (Code theCode)
 
-formatAddressState::AddressState'->String
-formatAddressState = show
+--formatAddressState::AddressState'->String
+--formatAddressState = show
 
 getNumber::String->Integer
 getNumber "" = 0
@@ -149,12 +152,12 @@ getNumber x = read x
 --    ccValue=show b
 --    }
 
-isBlankCode::Code->Bool
-isBlankCode (Code "") = True
-isBlankCode _ = False
+--isBlankCode::Code->Bool
+--isBlankCode (Code "") = True
+--isBlankCode _ = False
 
 showInfo::(Address,AddressState')->String
-showInfo (key,val@AddressState'{nonce'=n, balance'=b, storage'=s, contractCode'=Code c}) = 
+showInfo (key,AddressState'{nonce'=n, balance'=b, storage'=s, contractCode'=Code c}) = 
     show (pretty key) ++ "[#ed]" ++ "(" ++ show n ++ "): " ++ show b ++ 
          (if M.null s
           then ""
@@ -162,6 +165,7 @@ showInfo (key,val@AddressState'{nonce'=n, balance'=b, storage'=s, contractCode'=
                M.map showHexInt $ M.mapKeys ((++ "[#ed]") . showHexInt) s)
          ) ++ 
          (if B.null c then "" else ", CODE:[" ++ C.blue (format c) ++ "]")
+showInfo _ = ""  
 
 addressStates::ContextM [(Address, AddressState')]
 addressStates = do
@@ -171,9 +175,9 @@ addressStates = do
   states' <- mapM (uncurry getDataAndRevertAddressState) $ zip addrs states
   return $ zip addrs states'
 
-runTest'::Test->ContextM (Either String String)
-runTest' test = do
-    return $ Left ""
+--runTest'::Test->ContextM (Either String String)
+--runTest' test = do
+--    return $ Left ""
 
 runTest::Test->ContextM (Either String String)
 runTest test = do

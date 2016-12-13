@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric, OverloadedStrings, FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 
 module TestDescriptions (
   Env(..),
@@ -211,7 +212,7 @@ instance FromJSON Env where
     v .: "currentGasLimit" <*>
     v .: "currentNumber" <*>
     v .: "currentTimestamp" <*>
-    v .:? "previousHash" .!= (SHA $ fromIntegral 0) -- TODO this causes "missing value in block summary DB" because it is not a valid block hash
+    v .:? "previousHash" .!= (SHA $ (fromIntegral 0)) -- TODO this causes "missing value in block summary DB" because it is not a valid block hash
     where
       env' v1 v2 currentGasLimit' v4 currentTimestamp' v6 =
         Env v1 v2 (read currentGasLimit') v4 (posixSecondsToUTCTime . fromInteger . sloppyInteger2Integer $ currentTimestamp') v6 
@@ -272,11 +273,11 @@ instance FromJSON Log where
       log' v1 v2 v3 v4 = Log v1 (fromIntegral $ byteString2Integer $ fst $ B16.decode v2) v3 v4
   parseJSON x = error $ "Wrong format when trying to parse Log from JSON: " ++ show x
 
-b16_decode_optional0x::B.ByteString->(B.ByteString, B.ByteString)
-b16_decode_optional0x x = 
-  case BC.unpack x of
-    ('0':'x':rest) -> B16.decode $ BC.pack rest
-    _ -> B16.decode x
+--b16_decode_optional0x::B.ByteString->(B.ByteString, B.ByteString)
+--b16_decode_optional0x x = 
+--  case BC.unpack x of
+--    ('0':'x':rest) -> B16.decode $ BC.pack rest
+--    _ -> B16.decode x
 
 
 --instance FromJSON Address where
