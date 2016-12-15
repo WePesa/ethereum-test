@@ -28,10 +28,5 @@ import Test.HUnit
 
 main::IO ()
 main = do
---   counts <- runTestTT $ TestList [TestLabel " get . put = id" testGetPut,
---                                   TestLabel " get . put . put = id" testGetPutRepeated,
---                                   TestLabel " get . putn = id" testGetPutRepeatedII,
---                                   TestLabel " single insert" testSingleInsert,
---                                   TestLabel " multiple insert" testMultipleInserts]
--- 
+  counts <- runTestTT $ TestList [TestLabel "test1" (TestCase $ assertBool "id" True)]
   return ()
