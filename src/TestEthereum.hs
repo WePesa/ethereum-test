@@ -66,6 +66,10 @@ import Blockchain.Database.MerklePatricia.Internal
 import Blockchain.FastECRecover
 --import Blockchain.Data.Address
 import Blockchain.ExtendedECDSA
+
+import Blockchain.Sequencer.Event
+import Blockchain.Data.ExecResults
+import qualified Blockchain.Data.TXOrigin as TO
 --import Data.Maybe (fromJust)
 import HFlags 
 
@@ -172,6 +176,9 @@ showInfo (key,AddressState'{nonce'=n, balance'=b, storage'=s, contractCode'=Code
          (if B.null c then "" else ", CODE:[" ++ C.blue (format c) ++ "]")
 showInfo _ = ""  
 
+txToOutputTx :: Transaction -> OutputTx
+txToOutputTx = fromJust . wrapTransaction . IngestTx TO.Direct
+
 addressStates::ContextM [(Address, AddressState')]
 addressStates = do
   addrStates <- getAllAddressStates -- lift
@@ -229,7 +236,7 @@ runTest test = do
         let env =
               Environment{
                 envGasPrice=getNumber $ gasPrice' exec,
-                envBlock=block,
+                envBlockHeader=blockBlockData $ block,
                 envOwner = address' exec,
                 envOrigin = origin exec,
                 envInputData = theData $ data' exec,
@@ -239,9 +246,10 @@ runTest test = do
                 envJumpDests = getValidJUMPDESTs $ code exec
                 }
         ctx <- get
-        vmState <- liftIO $ startingState False False env ctx -- (error "Context not defined") -- TODO add Context here
+        vmState <- liftIO $ startingState True False env ctx
+        --vmState <- liftIO $ startingState False False env ctx -- (error "Context not defined") -- TODO add Context here
 
-        (result, vmState) <-
+        (result, vmState) <- lift $
           lift $ flip runStateT vmState{vmGasRemaining=getNumber $ gas exec, debugCallCreates=Just []} $ -- - lift
           runEitherT $ do
             runCodeFromStart
@@ -253,7 +261,16 @@ runTest test = do
 
             forM_ (suicideList vmState) $ deleteAddressState -- lift . lift . lift
 
-        return (result, returnVal vmState, vmGasRemaining vmState, logs vmState, debugCallCreates vmState)
+        put $ dbs vmState
+
+        flushMemStorageDB
+        flushMemAddressStateDB
+
+        case vmException vmState of
+          Nothing -> return (result, returnVal vmState, vmGasRemaining vmState, logs vmState, debugCallCreates vmState, Just vmState)
+          Just e -> return (Right (), Nothing, 0, [], Just [], Nothing)
+
+        --return (result, returnVal vmState, vmGasRemaining vmState, logs vmState, debugCallCreates vmState)
 
       ITransaction transaction -> do
         let t = case tTo' transaction of
@@ -274,14 +291,24 @@ runTest test = do
                     (getNumber $ tValue' transaction)
                     (theData $ tData' transaction)
                     (tSecretKey' transaction)
-        signedTransaction <- liftIO $ withSource Haskoin.devURandom t 
+        signedTransaction' <- liftIO $ withSource Haskoin.devURandom t 
+        let signedTransaction = txToOutputTx signedTransaction'
         result <-
-          runEitherT $ addTransaction False block (currentGasLimit $ env test) signedTransaction
+          runEitherT $ addTransaction False (blockBlockData $ block) (currentGasLimit $ env test) signedTransaction
+
+        flushMemStorageDB
+        flushMemAddressStateDB
 
         case result of
-          Right (vmState, _) ->
-            return (Right (), returnVal vmState, vmGasRemaining vmState, logs vmState, debugCallCreates vmState)
-          Left e -> return (Right (), Nothing, 0, [], Just [])
+          Right (ExecResults remGas retVal trace logs newCtAddr) -> do
+            return ( Right (), retVal, remGas, logs, Just [], Nothing)
+          Left e -> do 
+            return (Right (), Nothing, 0, [], Just [], Nothing)
+
+ --       case result of
+ --         Right (vmState, _) ->
+ --           return (Right (), returnVal vmState, vmGasRemaining vmState, logs vmState, debugCallCreates vmState)
+ --         Left e -> return (Right (), Nothing, 0, [], Just [])
 
 
   afterAddressStates <- addressStates
@@ -353,7 +380,6 @@ whoSignedThisTransaction' t =
 
 runAllTests::Maybe String->Maybe String->ContextM ()
 runAllTests maybeFileName maybeTestName= do
-  putWSTT $ fromJust . whoSignedThisTransaction'
   let theFiles =
         case maybeFileName of
           Nothing -> testFiles
