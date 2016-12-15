@@ -44,8 +44,7 @@ executable ethereum-test
   other-modules:       TestFiles,
                        TestDescriptions,
                        TestEthereum
-
-
+                       
 Test-Suite test-ethereum-test
   default-language: Haskell98
   type:             exitcode-stdio-1.0

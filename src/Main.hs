@@ -5,8 +5,11 @@ import Control.Monad
 import Control.Monad.Logger
 import System.Directory
 
+import System.Environment
 import Blockchain.Output
-import Blockchain.VM.VMState
+--import Blockchain.VM.VMState
+import Blockchain.VMContext
+import Blockchain.VMOptions
 
 import TestEthereum
 
