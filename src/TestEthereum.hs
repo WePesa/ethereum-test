@@ -2,6 +2,7 @@
 
 module TestEthereum (
                       runAllTests
+                    , runTest
                     , noLog
                     ) where
 
@@ -306,23 +307,11 @@ runTest test = do
         flushMemStorageDB
         flushMemAddressStateDB
 
-
--- (result, retVal, gasRemaining, logs, returnedCallCreates, maybeVMStateAfter)
-
         case result of
             Right (ExecResults remGas retVal trace logs newCtAddr) -> do
               return ( Right (), retVal, remGas, logs, Just [], Nothing)
-
             Left e -> do 
               return (Right (), Nothing, 0, [], Just [], Nothing)
-
-
---          Right (VMState{vmException=Just e}, _) -> do
---                    return (Right (), Nothing, 0, [], Just [], Nothing)
---          Right (vmState, _) -> do
---                    return (Right (), returnVal vmState, vmGasRemaining vmState, logs vmState, debugCallCreates vmState, Just vmState)
---          Left e -> do
---                    return (Right (), Nothing, 0, [], Just [], Nothing)
 
   afterAddressStates <- addressStates
 
@@ -330,7 +319,6 @@ runTest test = do
       hashAddress (Address s) = Address $ fromIntegral $ byteString2Integer $ nibbleString2ByteString $ N.EvenNibbleString $ (SHA3.hash 256) $ BL.toStrict $ Bin.encode s
 
   let postTest = M.toList $
---                 M.mapKeys hashAddress $
                  flip M.map (post test) $
                  \s' -> s'{storage' = M.mapKeys hashInteger (storage' s')} 
 

@@ -63,4 +63,43 @@ Test-Suite test-ethereum-test
                   , containers
                   , HUnit
                   , test-framework
-                  , test-framework-hunit 
+                  , test-framework-hunit
+                  , ethereum-vm
+                  , strato-sequencer
+                  , nibblestring
+                  , blockapps-data
+                  , blockapps-util
+                  , ethereum-rlp
+                  , ansi-wl-pprint
+                  , merkle-patricia-db
+                  , directory
+                   , aeson
+                     , base16-bytestring
+                     , binary
+                     , blockapps-data
+                     , blockapps-util
+                     , bytestring
+                     , containers
+                     , cryptohash
+                     , directory
+                     , either
+                     , ethereum-rlp
+                     , ethereum-vm
+                     , filepath
+                     , haskoin
+                     , hflags
+                     , IfElse
+                     , leveldb-haskell
+                     , merkle-patricia-db
+                     , mtl
+                     , nibblestring
+                     , resourcet
+                     , scientific
+                     , text
+                     , time
+                     , transformers
+                     , unordered-containers
+                     , ansi-wl-pprint
+                     , monad-logger
+                     , strato-sequencer
+ 
