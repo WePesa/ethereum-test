@@ -44,27 +44,29 @@ import TestEthereum
 import TestFiles
 import qualified TestDescriptions as TD
 
-doTest :: [(String, TD.Test)] -> IO ()
-doTest tests = do
-  flip runLoggingT noLog $ runContextM $ forM tests $ \(name, test) -> do 
-    result <- runTest test 
-    _ <- liftIO $ runTestTT $ TestList $ fmap (\(n, r) -> (TestLabel n (TestCase $ assertBool "id" (isRight r)))) [(name, result)]
-    return (name, result)
-
-runTest' :: (String, TD.Test) -> IO Test.HUnit.Test
-runTest' (n, t) = do
-  r <- flip runLoggingT noLog $ runContextM' $ do 
-    res <- runTest t
-    liftIO $ putStrLn $ "\nRunning test " ++ n
-    return $ TestLabel n (TestCase $ assertBool "id" (isRight $ res))
-  return $ fst r  
-
 doTests :: [(String, TD.Test)] -> IO ()
 doTests tests = do
-  liftIO $ putStrLn $ "\nNew test list..."
-  t <- mapM runTest' tests :: IO [Test.HUnit.Test] 
-  _ <- runTestTT $ TestList t
+  results <- flip runLoggingT noLog $ runContextM' $ forM tests $ \(n, test) -> do
+    result <- runTest test 
+    return $ (n, result)
+  let a = fst results :: [(String, Either String String)]
+  _ <- liftIO $ runTestTT $ TestList $ map f a 
   return ()
+    where
+  f :: (String, Either a b) -> Test.HUnit.Test 
+  f (n, r) = TestLabel n (TestCase $ assertBool n (isRight $ r))
+
+doTests' :: [(String, TD.Test)] -> ContextM Counts
+doTests' tests = do
+  results <- forM tests $ \(n, test) -> do
+    result <- runTest test 
+    return $ (n, result)
+  let a = results :: [(String, Either String String)]
+  liftIO $ runTestTT $ TestList $ map f a 
+  --return ()
+    where
+  f :: (String, Either a b) -> Test.HUnit.Test 
+  f (n, r) = TestLabel n (TestCase $ assertBool n (isRight $ r))
 
 main::IO ()
 main = do
@@ -77,12 +79,16 @@ main = do
     theFile <- BL.readFile theFileName
     putStrLn $ "\n#### Running tests in file: " ++ theFileName
     case fmap fromJSON $ eitherDecode theFile::Either String (Result TD.Tests) of
-          Left err ->  putStrLn ("error: " ++ err)
+          -- Left err ->  putStrLn ("error: " ++ err)
           Right val ->
             case val of
-              Error err' -> putStrLn ("error': " ++ err')
-              Success tests -> doTest $ (M.toList tests) 
+              --Error err' -> putStrLn ("error': " ++ err')
+              Success tests -> doTests $ (M.toList tests) -- doTests 
     return ()
+
+  -- let a = res :: [[(String, TD.Test)]]
+  -- let b = join a :: [(String, TD.Test)]
+  -- flip runLoggingT noLog $ runContextM' $ doTests' b  
 
   return ()
 
