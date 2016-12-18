@@ -47,13 +47,24 @@ import qualified TestDescriptions as TD
 doTest :: [(String, TD.Test)] -> IO ()
 doTest tests = do
   flip runLoggingT noLog $ runContextM $ forM tests $ \(name, test) -> do 
-    result <- runTest test
+    result <- runTest test 
     _ <- liftIO $ runTestTT $ TestList $ fmap (\(n, r) -> (TestLabel n (TestCase $ assertBool "id" (isRight r)))) [(name, result)]
     return (name, result)
 
--- doTests :: [(String, TD.Test)] -> IO () 
--- doTests tests = do
---   flip runLoggingT noLog $ runContextM $ runTestTT $ TestList $ fmap (\(n, t) -> (TestLabel n (TestCase $ assertBool "id" (lift $ isRight (runTest t))))) tests 
+runTest' :: (String, TD.Test) -> IO Test.HUnit.Test
+runTest' (n, t) = do
+  r <- flip runLoggingT noLog $ runContextM' $ do 
+    res <- runTest t
+    liftIO $ putStrLn $ "\nRunning test " ++ n
+    return $ TestLabel n (TestCase $ assertBool "id" (isRight $ res))
+  return $ fst r  
+
+doTests :: [(String, TD.Test)] -> IO ()
+doTests tests = do
+  liftIO $ putStrLn $ "\nNew test list..."
+  t <- mapM runTest' tests :: IO [Test.HUnit.Test] 
+  _ <- runTestTT $ TestList t
+  return ()
 
 main::IO ()
 main = do
@@ -64,8 +75,7 @@ main = do
 
   res <- forM testFiles $ \theFileName -> do
     theFile <- BL.readFile theFileName
-    --putStrLn $ "#### Running tests in file: " ++ theFileName
-    --counts <- runTestTT $ TestList [ TestLabel theFileName (TestCase $ assertBool "id" True)]
+    putStrLn $ "\n#### Running tests in file: " ++ theFileName
     case fmap fromJSON $ eitherDecode theFile::Either String (Result TD.Tests) of
           Left err ->  putStrLn ("error: " ++ err)
           Right val ->
