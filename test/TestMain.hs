@@ -88,6 +88,7 @@ main = do
   putStrLn $ "\nRunning ethereum tests\n"
   tests <- forM testFiles $ \theFileName -> do
     theFile <- BL.readFile theFileName
+    putStrLn $ "\n - Running tests from " ++ theFileName
     return $ case fmap fromJSON $ eitherDecode theFile::Either String (Result TD.Tests) of
         Right val ->
           case val of
