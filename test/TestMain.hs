@@ -68,12 +68,33 @@ doTests' tests = do
   f :: (String, Either a b) -> Test.HUnit.Test 
   f (n, r) = TestLabel n (TestCase $ assertBool n (isRight $ r))
 
+doTests'' :: [(String, TD.Test)] -> ContextM Test.HUnit.Test 
+doTests'' tests = do
+  results <- forM tests $ \(n, test) -> do
+    result <- runTest test 
+    return $ (n, result)
+  let a = results :: [(String, Either String String)]
+  return $ TestList $ map f a 
+  --return ()
+    where
+  f :: (String, Either a b) -> Test.HUnit.Test 
+  f (n, r) = TestLabel n (TestCase $ assertBool n (isRight $ r))
+
 main::IO ()
 main = do
   args <- $initHFlags "The Ethereum Test program"
   testsExist <- doesDirectoryExist "tests"
   when (not testsExist) $
     error "You need to clone the git repository at https://github.com/ethereum/tests.git"
+
+--  tests <- forM testFiles $ \theFileName -> do
+--    theFile <- BL.readFile theFileName
+--    return $ case fmap fromJSON $ eitherDecode theFile::Either String (Result TD.Tests) of
+--        Right val ->
+--          case val of
+--            Success tests -> doTests'' (M.toList tests)
+--
+--  mapM (liftIO . runTestTT) tests  
 
   res <- forM testFiles $ \theFileName -> do
     theFile <- BL.readFile theFileName
@@ -83,7 +104,7 @@ main = do
           Right val ->
             case val of
               --Error err' -> putStrLn ("error': " ++ err')
-              Success tests -> doTests $ (M.toList tests) -- doTests 
+              Success tests -> doTests (M.toList tests) -- doTests 
     return ()
 
   -- let a = res :: [[(String, TD.Test)]]
