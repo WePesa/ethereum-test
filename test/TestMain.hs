@@ -63,7 +63,6 @@ doTests' tests = do
     return $ (n, result)
   let a = results :: [(String, Either String String)]
   liftIO $ runTestTT $ TestList $ map f a 
-  --return ()
     where
   f :: (String, Either a b) -> Test.HUnit.Test 
   f (n, r) = TestLabel n (TestCase $ assertBool n (isRight $ r))
@@ -75,7 +74,6 @@ doTests'' tests = do
     return $ (n, result)
   let a = results :: [(String, Either String String)]
   return $ TestList $ map f a 
-  --return ()
     where
   f :: (String, Either a b) -> Test.HUnit.Test 
   f (n, r) = TestLabel n (TestCase $ assertBool n (isRight $ r))
@@ -87,26 +85,35 @@ main = do
   when (not testsExist) $
     error "You need to clone the git repository at https://github.com/ethereum/tests.git"
 
-  -- tests <- forM testFiles $ \theFileName -> do
-  --   theFile <- BL.readFile theFileName
-  --   return $ case fmap fromJSON $ eitherDecode theFile::Either String (Result TD.Tests) of
-  --       Right val ->
-  --         case val of
-  --           Success tests -> doTests'' (M.toList tests)
- 
-  -- let a = tests :: _
-  -- (fmap TestList) <$> sequence tests :: _  
-
-  res <- forM testFiles $ \theFileName -> do
+  putStrLn $ "\nRunning ethereum tests\n"
+  tests <- forM testFiles $ \theFileName -> do
     theFile <- BL.readFile theFileName
-    putStrLn $ "\n#### Running tests in file: " ++ theFileName
-    case fmap fromJSON $ eitherDecode theFile::Either String (Result TD.Tests) of
-          -- Left err ->  putStrLn ("error: " ++ err)
-          Right val ->
-            case val of
-              --Error err' -> putStrLn ("error': " ++ err')
-              Success tests -> doTests (M.toList tests) -- doTests 
-    return ()
+    return $ case fmap fromJSON $ eitherDecode theFile::Either String (Result TD.Tests) of
+        Right val ->
+          case val of
+            Success tests -> TestLabel theFileName <$> (doTests'' (M.toList tests))
+  
+  let a = tests :: [ContextM Test.HUnit.Test] 
+  let g f mas = (fmap f) <$> sequence mas -- :: (Monad m, Traversable t) => (a -> b) -> t (m a) -> m (t b)
+  let b = g id tests
+  --(fmap TestList) <$> sequence tests :: _ 
+  
+  r <- do 
+    flip runLoggingT noLog $ runContextM' $ b
+
+  let rr = fst r :: [Test.HUnit.Test]
+  runTestTT $ TestList $ rr
+   
+  -- res <- forM testFiles $ \theFileName -> do
+  --   theFile <- BL.readFile theFileName
+  --   putStrLn $ "\n#### Running tests in file: " ++ theFileName
+  --   case fmap fromJSON $ eitherDecode theFile::Either String (Result TD.Tests) of
+  --         -- Left err ->  putStrLn ("error: " ++ err)
+  --         Right val ->
+  --           case val of
+  --             --Error err' -> putStrLn ("error': " ++ err')
+  --             Success tests -> doTests (M.toList tests) -- doTests 
+  --   return ()
 
   -- let a = res :: [[(String, TD.Test)]]
   -- let b = join a :: [(String, TD.Test)]
