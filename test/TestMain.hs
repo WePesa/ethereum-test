@@ -100,7 +100,7 @@ main = do
   --(fmap TestList) <$> sequence tests :: _ 
   
   r <- do 
-    flip runLoggingT noLog $ runContextM' $ b
+    flip runLoggingT noLog $ runContextM $ b
 
   let rr = fst r :: [Test.HUnit.Test]
   runTestTT $ TestList $ rr
@@ -118,7 +118,7 @@ main = do
 
   -- let a = res :: [[(String, TD.Test)]]
   -- let b = join a :: [(String, TD.Test)]
-  -- flip runLoggingT noLog $ runContextM' $ doTests' b  
+  -- flip runLoggingT noLog $ runContextM $ doTests' b  
 
   return ()
 
