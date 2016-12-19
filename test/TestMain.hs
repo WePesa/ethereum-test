@@ -46,7 +46,7 @@ import qualified TestDescriptions as TD
 
 doTests :: [(String, TD.Test)] -> IO ()
 doTests tests = do
-  results <- flip runLoggingT noLog $ runContextM' $ forM tests $ \(n, test) -> do
+  results <- flip runLoggingT noLog $ runContextM $ forM tests $ \(n, test) -> do
     result <- runTest test 
     return $ (n, result)
   let a = fst results :: [(String, Either String String)]
