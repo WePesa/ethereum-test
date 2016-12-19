@@ -87,14 +87,15 @@ main = do
   when (not testsExist) $
     error "You need to clone the git repository at https://github.com/ethereum/tests.git"
 
---  tests <- forM testFiles $ \theFileName -> do
---    theFile <- BL.readFile theFileName
---    return $ case fmap fromJSON $ eitherDecode theFile::Either String (Result TD.Tests) of
---        Right val ->
---          case val of
---            Success tests -> doTests'' (M.toList tests)
---
---  mapM (liftIO . runTestTT) tests  
+  -- tests <- forM testFiles $ \theFileName -> do
+  --   theFile <- BL.readFile theFileName
+  --   return $ case fmap fromJSON $ eitherDecode theFile::Either String (Result TD.Tests) of
+  --       Right val ->
+  --         case val of
+  --           Success tests -> doTests'' (M.toList tests)
+ 
+  -- let a = tests :: _
+  -- (fmap TestList) <$> sequence tests :: _  
 
   res <- forM testFiles $ \theFileName -> do
     theFile <- BL.readFile theFileName
